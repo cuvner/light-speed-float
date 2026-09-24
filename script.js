@@ -187,14 +187,14 @@
   }
 
   /* ---------- test mode: one question per step ---------- */
-  const test = { stage: 0, tries: 0, shown: [] };
+  const test = { stage: 0, tries: 0, shown: [], gap: null, picked: new Set() };
 
   function questions() {
     const { m, e, exp } = work();
     return [
       { ask: `The exponent bits are <b class="e">${e.join("")}</b>. What number is that?`, ph: "e.g. 2" },
-      { ask: `Start with the mantissa <b class="m">${m[0]}.${m.slice(1).join("")}</b>. Move the point for an exponent of <b class="e">${fmt(exp)}</b>, then type the new binary number.`, ph: "e.g. 101.1" },
-      { ask: `Now turn <b class="m">${work().shifted}</b> into denary. What's the speed?`, ph: "e.g. 5.5" },
+      { ask: `The exponent is <b class="e">${fmt(exp)}</b>. Click the gap where the binary point should go.` },
+      { ask: `Click the place values above each <b class="m">1</b> to add them up.` },
     ];
   }
 
@@ -204,21 +204,32 @@
     if (s.includes("/")) { const [a, b] = s.split("/").map(Number); return a / b; }
     return Number(s);
   };
-  // Read a typed binary number like "0101.1" two ways: plain and two's complement.
-  function parseBinary(s) {
-    s = s.trim().replace(/\s/g, "");
-    if (!/^[01]*\.?[01]*$/.test(s) || !/[01]/.test(s)) return null;
-    const [i = "", f = ""] = s.split(".");
-    const all = i + f;
-    const plain = [...all].reduce((v, b, k) => v + +b * 2 ** (i.length - 1 - k), 0);
-    const twosVal = all[0] === "1" && i.length ? plain - 2 ** i.length : plain;
-    return { plain, twos: twosVal };
-  }
   const same = (a, b) => Math.abs(a - b) < 1e-12;
+
+  // Step 2 layout: spare copies of the sign bit on the left, then the mantissa.
+  function pointLayout() {
+    const { m, exp } = work();
+    const spare = Math.max(4, -exp);
+    return { digits: [...Array(spare).fill(m[0]), ...m], spare, start: spare + 1, answer: spare + 1 + exp, exp };
+  }
+  function movedText(gap) {
+    const { start } = pointLayout(), d = gap - start, n = Math.abs(d);
+    if (!d) return "The ring shows where the point starts. Click a gap to move it.";
+    return `You've moved the point ${n} place${n === 1 ? "" : "s"} ${d > 0 ? "right" : "left"}.`;
+  }
+  // Step 3: the place values the student has clicked
+  function totalText() {
+    const { digits, intLen } = work();
+    const picked = [...test.picked].sort((a, b) => a - b);
+    if (!picked.length) return "Your total: 0";
+    const w = picked.map((i) => (i === 0 ? -1 : 1) * 2 ** (intLen - 1 - i));
+    const sum = w.reduce((a, b) => a + b, 0);
+    return `Your total: ${w.map((x, k) => (k === 0 ? fmt(x) : ` + ${fmt(x)}`)).join("")} = ${fmt(sum)}`;
+  }
 
   // Returns [correct?, feedback]
   function mark(stage, raw) {
-    const { m, e, exp, mant, value } = { ...work(), mant: decode(state.bits).value / 2 ** decode(state.bits).exp };
+    const { e, exp, value, digits, intLen } = work();
     if (stage === 0) {
       const x = parseNum(raw);
       if (Number.isNaN(x)) return [false, "Type a whole number, like 2 or −3."];
@@ -228,78 +239,126 @@
       return [false, "Add up the numbers above each exponent bit that is a 1."];
     }
     if (stage === 1) {
-      const b = parseBinary(raw);
-      if (!b) return [false, "Type a binary number using 0, 1 and a point, like 101.1"];
-      const ok = value < 0 ? same(b.twos, value) : same(b.plain, value) || same(b.twos, value);
-      if (ok) return [true, `Yes! The point is in the right place.`];
-      const got = value < 0 ? b.twos : b.plain;
-      if (same(got, mant)) return [false, "The point hasn't moved yet. The exponent tells you how far to move it."];
-      if (exp !== 0 && same(got, mant * 2 ** -exp)) return [false, `Wrong way! ${exp > 0 ? "A positive exponent moves the point right." : "A negative exponent moves the point left."}`];
-      if (value < 0 && exp < 0) return [false, "Nearly. When the point moves left on a negative number, fill the gaps with 1s."];
-      return [false, `Move the point exactly ${Math.abs(exp)} place${Math.abs(exp) === 1 ? "" : "s"} ${exp > 0 ? "right" : "left"}.`];
+      const { start, answer } = pointLayout(), gap = test.gap, n = Math.abs(exp);
+      if (gap === answer) return [true, "Yes! The point is in the right place."];
+      if (gap === start) return [false, "The point hasn't moved yet. The exponent tells you how far to move it."];
+      if (exp !== 0 && gap === start - exp) return [false, `Wrong way! ${exp > 0 ? "A positive exponent moves the point right." : "A negative exponent moves the point left."}`];
+      if (exp === 0) return [false, "The exponent is 0, so the point stays where it started."];
+      return [false, `Count again: move it exactly ${n} place${n === 1 ? "" : "s"} ${exp > 0 ? "right" : "left"}.`];
     }
-    const x = parseNum(raw);
-    if (Number.isNaN(x)) return [false, "Type a number, like 2.75 or −0.375."];
-    if (same(x, value)) return [true, `Correct! The speed is ${fmt(value)}.`];
-    if (same(x, -value)) return [false, "Right size, wrong direction. The leftmost column counts as negative when it's a 1."];
-    return [false, "Write the place values above each digit, then add up the ones under a 1."];
+    const sum = [...test.picked].reduce((a, i) => a + (i === 0 ? -1 : 1) * 2 ** (intLen - 1 - i), 0);
+    if (same(sum, value)) return [true, `Correct! The speed is ${fmt(value)}.`];
+    const zero = [...test.picked].find((i) => !digits[i]);
+    if (zero !== undefined) return [false, `There's a 0 under ${label((zero === 0 ? -1 : 1) * 2 ** (intLen - 1 - zero))}, so don't add that one.`];
+    if (digits[0] && !test.picked.has(0)) return [false, "You've missed the leftmost column. It's negative, but it still counts."];
+    return [false, "You've missed a column with a 1 under it."];
+  }
+
+  function activeBody(i) {
+    const q = questions()[i];
+    const buttons = `<div class="ans-row"><button type="button" class="btn primary check-step" data-stage="${i}">Check</button>
+      <button type="button" class="btn showme" ${test.tries < 2 ? "hidden" : ""}>Show me</button></div>`;
+    if (i === 0) {
+      return `<p>${q.ask}</p><form class="ans-row" data-stage="0" autocomplete="off">
+          <label for="ans-0" class="sr-only">Answer for step 1</label>
+          <input id="ans-0" placeholder="${q.ph}">
+          <button type="submit" class="btn primary">Check</button>
+          <button type="button" class="btn showme" ${test.tries < 2 ? "hidden" : ""}>Show me</button>
+        </form>`;
+    }
+    if (i === 1) {
+      const { digits, spare, start } = pointLayout();
+      if (test.gap == null) test.gap = start;
+      let row = "";
+      digits.forEach((d, k) => {
+        row += `<span class="d${k < spare ? " spare" : ""}">${d}</span>`;
+        if (k < digits.length - 1) {
+          const g = k + 1;
+          row += `<button type="button" class="gap${g === test.gap ? " on" : ""}${g === start ? " start" : ""}" data-gap="${g}" aria-label="Put the point after digit ${g}"></button>`;
+        }
+      });
+      return `<p>${q.ask}</p><div class="slots-wrap"><div class="slots">${row}</div></div>
+        <p class="note" id="moved">${movedText(test.gap)}</p>
+        <p class="note">Faded digits are spare copies of the sign bit, for when the point moves left.</p>${buttons}`;
+    }
+    const { digits, intLen } = work();
+    const w = digits.map((_, k) => (k === 0 ? -1 : 1) * 2 ** (intLen - 1 - k));
+    const head = w.map((x, k) => `<th class="${k === intLen ? "after-pt" : ""}"><button type="button" class="pvbtn${x < 0 ? " neg" : ""}${test.picked.has(k) ? " on" : ""}" data-col="${k}" aria-pressed="${test.picked.has(k)}">${label(x)}</button></th>`).join("");
+    const row = digits.map((d, k) => `<td class="${d ? "" : "off"}${k === intLen ? " after-pt" : ""}">${d}</td>`).join("");
+    return `<p>${q.ask}</p><div class="tbl-wrap"><table class="pick"><tr>${head}</tr><tr>${row}</tr></table></div>
+      <p class="calc" id="running">${totalText()}</p>${buttons}`;
   }
 
   function renderTest() {
-    const worked = steps(), qs = questions();
+    const worked = steps();
     stepsEl.innerHTML = worked.map((s, i) => {
       if (i < test.stage) {
         const tag = test.shown[i] ? `<span class="tag shown">shown</span>` : `<span class="tag ok">✓</span>`;
         return `<li class="step done"><h2>${s.t} ${tag}</h2>${s.h}</li>`;
       }
       if (i > test.stage) return `<li class="step locked"><h2>${s.t}</h2><p class="note">Unlocks when you finish step ${i}.</p></li>`;
-      return `<li class="step active"><h2>${s.t}</h2><p>${qs[i].ask}</p>
-        <form class="ans-row" data-stage="${i}" autocomplete="off">
-          <label for="ans-${i}" class="sr-only">Answer for step ${i + 1}</label>
-          <input id="ans-${i}" placeholder="${qs[i].ph}">
-          <button type="submit" class="btn primary">Check</button>
-          <button type="button" class="btn showme" ${test.tries < 2 ? "hidden" : ""}>Show me</button>
-        </form>
-        <p class="msg" id="msg-${i}"></p></li>`;
+      return `<li class="step active"><h2>${s.t}</h2>${activeBody(i)}<p class="msg" id="msg-${i}"></p></li>`;
     }).join("");
     if (test.stage >= worked.length) {
       stepsEl.insertAdjacentHTML("beforeend", `<li class="finish"><p class="msg ok">${test.shown.some(Boolean) ? "Done. Try another one without using Show me." : "All three steps right. Watch the needle go!"}</p><button type="button" class="btn primary" id="again">New question</button></li>`);
     }
     slidePoint();
-    const input = $(`#ans-${test.stage}`);
-    if (input) input.focus({ preventScroll: true });
+    const input = $("#ans-0");
+    if (input && test.stage === 0) input.focus({ preventScroll: true });
   }
 
   function advance(showed) {
     test.shown[test.stage] = showed;
     test.stage++;
     test.tries = 0;
+    test.gap = null;
+    test.picked = new Set();
     if (test.stage >= 3) { state.answered = true; render(); }
     else renderTest();
     stepsEl.querySelector(".step.active, .finish")?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
   }
 
-  const stepsEl = $("#steps");
-  stepsEl.addEventListener("submit", (ev) => {
-    ev.preventDefault();
-    const form = ev.target, stage = +form.dataset.stage;
-    const [ok, text] = mark(stage, form.querySelector("input").value);
+  function check(stage, raw) {
+    const [ok, text] = mark(stage, raw);
+    const li = stepsEl.querySelector(".step.active");
     const msg = $(`#msg-${stage}`);
     msg.textContent = text;
     msg.className = "msg " + (ok ? "ok" : "bad");
     if (ok) {
-      form.querySelectorAll("button, input").forEach((el) => (el.disabled = true));
-      setTimeout(() => advance(false), reduceMotion ? 0 : 700);
+      li.querySelectorAll("button, input").forEach((el) => (el.disabled = true));
+      setTimeout(() => advance(false), reduceMotion ? 0 : 800);
       return;
     }
     test.tries++;
-    if (test.tries >= 2) form.querySelector(".showme").hidden = false;
-    form.querySelector("input").select();
+    if (test.tries >= 2) li.querySelector(".showme").hidden = false;
+    li.querySelector("input")?.select();
+  }
+
+  const stepsEl = $("#steps");
+  stepsEl.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    check(0, ev.target.querySelector("input").value);
   });
   stepsEl.addEventListener("click", (ev) => {
-    if (ev.target.closest(".replay")) slidePoint();
-    if (ev.target.closest(".showme")) advance(true);
-    if (ev.target.closest("#again")) newQuestion();
+    const t = ev.target;
+    if (t.closest(".replay")) slidePoint();
+    if (t.closest(".showme")) advance(true);
+    if (t.closest("#again")) newQuestion();
+    if (t.closest(".check-step")) check(+t.closest(".check-step").dataset.stage);
+    const gap = t.closest(".gap");
+    if (gap && !gap.disabled) {
+      test.gap = +gap.dataset.gap;
+      stepsEl.querySelectorAll(".gap").forEach((g) => g.classList.toggle("on", g === gap));
+      $("#moved").textContent = movedText(test.gap);
+    }
+    const pv = t.closest(".pvbtn");
+    if (pv && !pv.disabled) {
+      const k = +pv.dataset.col;
+      test.picked.has(k) ? test.picked.delete(k) : test.picked.add(k);
+      pv.classList.toggle("on", test.picked.has(k));
+      pv.setAttribute("aria-pressed", String(test.picked.has(k)));
+      $("#running").textContent = totalText();
+    }
   });
 
   function renderSteps() {
@@ -347,7 +406,7 @@
     state.testing = true;
     state.answered = false;
     state.bits = randomBits();
-    test.stage = 0; test.tries = 0; test.shown = [];
+    test.stage = 0; test.tries = 0; test.shown = []; test.gap = null; test.picked = new Set();
     render();
   }
   $("#random").addEventListener("click", () => {
