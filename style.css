@@ -15,7 +15,7 @@
   --display: "Chakra Petch", "Arial Narrow", system-ui, sans-serif;
   --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
-  --cell: clamp(40px, 10vw, 56px);
+  --cell: clamp(30px, 8vw, 50px);
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -65,13 +65,13 @@ h1 { margin: 0; font: 700 clamp(32px, 6vw, 48px)/1 var(--display); }
 .d-dir.rev { fill: var(--red); }
 
 /* ---------- bits ---------- */
-.bits { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px 28px; }
+.bits { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px 22px; }
 .bitgroup { display: grid; gap: 6px; justify-items: center; }
 .grp-label { font: 700 15px var(--display); letter-spacing: 0.06em; }
 .grp-hint { font-size: 14px; color: var(--muted); margin-top: -4px; }
-.cells { display: flex; align-items: flex-end; gap: 6px; }
+.cells { display: flex; align-items: flex-end; gap: clamp(3px, 1vw, 6px); }
 .cell { display: grid; gap: 4px; justify-items: center; }
-.pv { font: 500 13px var(--mono); color: var(--muted); }
+.pv { font: 500 clamp(9px, 2.5vw, 13px) var(--mono); color: var(--muted); white-space: nowrap; }
 .pv.neg { color: var(--red); }
 .bit {
   width: var(--cell);
@@ -79,7 +79,7 @@ h1 { margin: 0; font: 700 clamp(32px, 6vw, 48px)/1 var(--display); }
   border-radius: 10px;
   border: 2px solid var(--line);
   background: var(--panel);
-  font: 700 clamp(22px, 5.5vw, 30px) var(--mono);
+  font: 700 clamp(18px, 4.8vw, 28px) var(--mono);
   cursor: pointer;
   transition: background-color 0.15s, border-color 0.15s;
 }
@@ -165,14 +165,14 @@ td.off { opacity: 0.35; }
 .after-pt { border-left: 4px solid var(--ink); }
 
 .shift { position: relative; display: inline-flex; padding: 4px 6px 4px; font: 700 26px var(--mono); }
-.shift span { width: 32px; text-align: center; color: var(--amber); }
+.shift span { width: 26px; text-align: center; color: var(--amber); }
 .shift span.pad { color: var(--muted); font-style: italic; }
 .shift-pt {
   position: absolute; left: 6px; bottom: 8px;
   width: 9px; height: 9px; margin-left: -4.5px;
   border-radius: 50%; background: var(--ink); box-shadow: 0 0 10px var(--ink);
 }
-.shift-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.shift-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; overflow-x: auto; }
 .replay { font-size: 13px; padding: 4px 10px; }
 
 @media (prefers-reduced-motion: reduce) {

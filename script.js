@@ -1,15 +1,15 @@
 /* Light-Speed Float — 8-bit floating point on a speedometer.
-   5-bit mantissa + 3-bit exponent, both two's complement.
+   8-bit mantissa + 4-bit exponent, both two's complement.
    The mantissa's binary point sits straight after its first bit. */
 (() => {
   "use strict";
 
   const $ = (s) => document.querySelector(s);
-  const M = 5, E = 3;
+  const M = 8, E = 4;
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const state = {
-    bits: [0, 1, 0, 1, 1, 0, 1, 1], // 0.1011 × 2^3 = 5.5
+    bits: [0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1], // 0.1011000 × 2^3 = 5.5
     testing: false,
     answered: false,
   };
@@ -24,16 +24,20 @@
   const fmt = (v) => String(v).replace("-", "−");
   const label = (w) => (Math.abs(w) >= 1 ? fmt(w) : "1/" + 1 / w);
   function randomBits() {
-    // always a normalised number: first two mantissa bits differ
+    // always a normalised number: first two mantissa bits differ.
+    // Keep questions friendly: short mantissas and exponents between −4 and 5.
     const s = Math.random() < 0.7 ? 0 : 1;
-    const b = [s, 1 - s];
-    for (let i = 2; i < 8; i++) b.push(Math.random() < 0.5 ? 0 : 1);
-    return b;
+    const used = 3 + Math.floor(Math.random() * 3); // 3–5 significant bits after the first two
+    const m = [s, 1 - s];
+    for (let i = 2; i < M; i++) m.push(i < 2 + used && Math.random() < 0.5 ? 1 : 0);
+    const exp = Math.floor(Math.random() * 10) - 4;
+    const e = Array.from({ length: E }, (_, i) => ((exp + 2 ** E) >> (E - 1 - i)) & 1);
+    return [...m, ...e];
   }
 
   /* ---------- speedometer ---------- */
   const CX = 200, CY = 190, R = 150, A0 = 150, SWEEP = 240;
-  const LO = -8, HI = Math.log2(7.5); // slowest (1/256) → top speed (7.5)
+  const LO = -15, HI = Math.log2(127); // slowest (2^-15) → top speed (127)
   const polar = (a, r) => { const t = (a * Math.PI) / 180; return [CX + r * Math.cos(t), CY + r * Math.sin(t)]; };
   function arc(a0, a1, r) {
     if (a1 - a0 < 0.05) a1 = a0 + 0.05;
@@ -117,8 +121,8 @@
     const cell = (i, pv) =>
       `<div class="cell"><span class="pv${pv.startsWith("−") ? " neg" : ""}">${pv}</span><button type="button" class="bit" id="bit-${i}" data-i="${i}" aria-label="bit ${i + 1}, worth ${pv}">0</button></div>`;
     let m = "";
-    ["−1", "1/2", "1/4", "1/8", "1/16"].forEach((pv, i) => { m += cell(i, pv); if (i === 0) m += `<span class="pt" aria-hidden="true">.</span>`; });
-    const e = ["−4", "2", "1"].map((pv, i) => cell(M + i, pv)).join("");
+    ["−1", "1/2", "1/4", "1/8", "1/16", "1/32", "1/64", "1/128"].forEach((pv, i) => { m += cell(i, pv); if (i === 0) m += `<span class="pt" aria-hidden="true">.</span>`; });
+    const e = ["−8", "4", "2", "1"].map((pv, i) => cell(M + i, pv)).join("");
     bitsEl.innerHTML =
       `<div class="bitgroup mant"><span class="grp-label m">MANTISSA</span><span class="grp-hint">the digits</span><div class="cells">${m}</div></div>` +
       `<div class="bitgroup exp"><span class="grp-label e">EXPONENT</span><span class="grp-hint">moves the point</span><div class="cells">${e}</div></div>`;
@@ -149,12 +153,12 @@
     const out = [];
 
     // 1. exponent
-    const eTerms = [-4, 2, 1].filter((_, i) => e[i]);
+    const eTerms = [-8, 4, 2, 1].filter((_, i) => e[i]);
     const eSum = eTerms.length ? eTerms.map((w, i) => (i ? " + " : "") + fmt(w)).join("") : "0";
     out.push({
       t: "Work out the exponent",
       h: `<p class="calc"><span class="e">${e.join("")}</span> → ${eSum} = <span class="e">${exp}</span></p>
-          <p class="note">Use the numbers above the exponent bits. The first one is −4.</p>`,
+          <p class="note">Use the numbers above the exponent bits. The first one is −8.</p>`,
     });
 
     // 2. move the point
@@ -220,7 +224,7 @@
       if (Number.isNaN(x)) return [false, "Type a whole number, like 2 or −3."];
       if (x === exp) return [true, `Yes! ${e.join("")} = ${fmt(exp)}.`];
       const unsigned = e.reduce((v, b, i) => v + b * 2 ** (E - 1 - i), 0);
-      if (x === unsigned) return [false, "Careful: the first exponent bit is worth −4, not +4."];
+      if (x === unsigned) return [false, "Careful: the first exponent bit is worth −8, not +8."];
       return [false, "Add up the numbers above each exponent bit that is a 1."];
     }
     if (stage === 1) {
