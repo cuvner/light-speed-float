@@ -398,6 +398,7 @@
     $("#quiz").hidden = !state.testing;
     $("#random").textContent = state.testing ? "Stop testing" : "Random speed";
     $("#test").textContent = state.testing ? "New question" : "Test me";
+    syncCustom();
     renderSteps();
   }
 
@@ -415,6 +416,45 @@
     render();
   });
   $("#test").addEventListener("click", newQuestion);
+
+  /* ---------- custom speed calculator ---------- */
+  const cMant = $("#c-mant"), cExp = $("#c-exp"), cMsg = $("#c-msg");
+  function syncCustom() {
+    $("#custom").hidden = state.testing;
+    // don't overwrite what the student is typing
+    if (document.activeElement === cMant || document.activeElement === cExp) return;
+    cMant.value = state.bits.slice(0, M).join("");
+    cExp.value = state.bits.slice(M).join("");
+    describeCustom();
+  }
+  function describeCustom(note = "") {
+    const { m, value } = decode(state.bits);
+    const norm = m.every((b) => b === 0) ? "zero" : m[0] !== m[1] ? "normalised" : "not normalised: the first two mantissa bits are the same";
+    cMsg.textContent = `${note}Speed = ${fmt(value)} (${norm}).`;
+    cMsg.className = "msg " + (norm.startsWith("not") ? "warn" : "ok");
+  }
+  function onCustomInput(ev) {
+    const el = ev.target;
+    const clean = el.value.replace(/[^01]/g, "");
+    if (clean !== el.value) {
+      el.value = clean;
+      cMsg.textContent = "Only 0s and 1s, please.";
+      cMsg.className = "msg bad";
+      return;
+    }
+    const mv = cMant.value, ev2 = cExp.value;
+    if (!mv) { cMsg.textContent = "Type the mantissa bits."; cMsg.className = "msg"; return; }
+    if (ev2.length !== E) {
+      cMsg.textContent = `The exponent needs ${E} bits (you've typed ${ev2.length}).`;
+      cMsg.className = "msg";
+      return;
+    }
+    state.bits = [...mv.padEnd(M, "0"), ...ev2].map(Number);
+    render();
+    describeCustom(mv.length < M ? `Mantissa padded with 0s to ${mv.padEnd(M, "0")}. ` : "");
+  }
+  cMant.addEventListener("input", onCustomInput);
+  cExp.addEventListener("input", onCustomInput);
 
   render();
   requestAnimationFrame(frame);

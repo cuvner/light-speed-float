@@ -28,6 +28,19 @@
     <button type="button" class="btn primary" id="test">Test me</button>
   </div>
 
+  <section class="custom" id="custom" aria-labelledby="custom-title">
+    <h2 id="custom-title">Custom speed</h2>
+    <p class="note">Type your own mantissa and exponent. The speedometer and the steps below work it out.</p>
+    <div class="custom-row">
+      <label class="field mfield" for="c-mant"><span>Mantissa · 8 bits</span>
+        <input id="c-mant" inputmode="numeric" maxlength="8" autocomplete="off" spellcheck="false" placeholder="01011000"></label>
+      <span class="custom-x" aria-hidden="true">×2^</span>
+      <label class="field efield" for="c-exp"><span>Exponent · 4 bits</span>
+        <input id="c-exp" inputmode="numeric" maxlength="4" autocomplete="off" spellcheck="false" placeholder="0011"></label>
+    </div>
+    <p class="msg" id="c-msg"></p>
+  </section>
+
   <p class="quiz-intro" id="quiz" hidden>Work out the speed one step at a time. Get a step right to unlock the next one.</p>
 
   <ol class="steps" id="steps"></ol>
