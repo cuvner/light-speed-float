@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Light-Speed Float</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Sans:wght@400;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Light-Speed Float</h1>
+    <p class="lede">Flip the 8 bits to change the speed. Then follow the three steps to see how the number is worked out.</p>
+  </header>
+
+  <div class="dial-wrap">
+    <canvas id="stars" aria-hidden="true"></canvas>
+    <svg id="dial" viewBox="0 0 400 340" role="img" aria-label="Speedometer"></svg>
+  </div>
+
+  <div class="bits" id="bits"></div>
+
+  <div class="actions">
+    <button type="button" class="btn" id="random">Random speed</button>
+    <button type="button" class="btn primary" id="test">Test me</button>
+  </div>
+
+  <p class="quiz-intro" id="quiz" hidden>Work out the speed one step at a time. Get a step right to unlock the next one.</p>
+
+  <ol class="steps" id="steps"></ol>
+  <p class="sr-only" aria-live="polite" id="live"></p>
+</div>
+<script src="script.js"></script>
+</body>
+</html>
