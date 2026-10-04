@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Light-Speed Float: Normalising</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Sans:wght@400;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <nav class="pages" aria-label="Pages">
+    <a href="index.html">Speedometer</a>
+    <a href="normalise.html" aria-current="page">Normalising</a>
+  </nav>
+  <header>
+    <h1>Normalising</h1>
+    <p class="lede">Turn a denary speed into a normalised 8-bit mantissa and 4-bit exponent. Start with full support, then take the supports away one at a time.</p>
+  </header>
+
+  <section class="support" aria-labelledby="support-title">
+    <div class="support-head">
+      <h2 id="support-title">Support</h2>
+      <span class="level-name" id="level-name">Full support</span>
+    </div>
+    <ol class="ladder" id="ladder"></ol>
+    <div class="row">
+      <button type="button" class="btn" id="less">Remove a support</button>
+      <button type="button" class="btn" id="more">Add one back</button>
+    </div>
+  </section>
+
+  <section class="target-card" aria-labelledby="target-label">
+    <p class="target-label" id="target-label">Target speed</p>
+    <div class="target-val" id="target-val">5.5</div>
+    <div class="row">
+      <button type="button" class="btn primary" id="new">New number</button>
+      <form class="own" id="own-form" autocomplete="off">
+        <label for="own" class="sr-only">Your own denary number</label>
+        <input id="own" placeholder="or type your own, e.g. −3.25">
+        <button type="submit" class="btn">Use it</button>
+      </form>
+    </div>
+    <p class="msg" id="own-msg"></p>
+  </section>
+
+  <ol class="steps" id="steps"></ol>
+</div>
+<script src="normalise.js"></script>
+</body>
+</html>
